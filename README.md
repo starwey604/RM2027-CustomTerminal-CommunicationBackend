@@ -97,6 +97,22 @@ bash build.sh -j4             # 指定并行度
 | `build/rm_api_demo` | 对外 C++ API 最小示例 |
 | `build/librm2027c.so` | 纯 C 接口动态库（Python ctypes 用它） |
 
+#### FFmpeg 兼容性回归
+
+解码器在新版本使用 `AV_FRAME_FLAG_KEY`；旧版头文件没有该标记时使用
+`AVFrame::key_frame`。`decode()` 和 `flush()` 共用同一判断，公开 BGR24 API 不变。
+已验证 FFmpeg 9.0.2 与 Ubuntu 22.04 的 FFmpeg 4.4.2。
+
+```bash
+cmake -S . -B build -DRM_BUILD_VIDEO_TESTS=ON
+cmake --build build --target rm_video_ffmpeg_compat_test -j4
+ctest --test-dir build -R '^video_ffmpeg_compat$' --output-on-failure
+```
+
+测试需要 FFmpeg 的 `libx265` 编码器，不需要 GPU 或网络：实际编码/解码低延迟
+I/P 帧、带 B 帧的重排序码流，以及只能在 `flush()` 中取得的单个关键帧；检查
+帧数、关键帧标记、BGR 像素与重复排空。测试选项默认关闭，不改变原构建入口。
+
 > 两个常见问题：
 > 1. 若 `build/` 是之前用 Ninja 生成的旧目录，先 `rm -rf build`，否则 `make` 找不到 Makefile。
 > 2. 头文件 `protobuf` 版本 < 3.15 时编译会失败，请先跑第 3 步的脚本。

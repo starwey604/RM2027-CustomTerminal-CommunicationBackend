@@ -18,6 +18,16 @@ std::string ffErr(int err) {
     return std::string(buf);
 }
 
+// New FFmpeg exposes the key-frame flag instead of AVFrame::key_frame.
+// Keep the original field for older headers (including Ubuntu 22.04 / FFmpeg 4.4).
+bool isKeyFrame(const AVFrame *frame) {
+#ifdef AV_FRAME_FLAG_KEY
+    return (frame->flags & AV_FRAME_FLAG_KEY) != 0;
+#else
+    return frame->key_frame != 0;
+#endif
+}
+
 AVCodecID codecId(VideoCodec c) {
     switch (c) {
     case VideoCodec::H265: return AV_CODEC_ID_HEVC;
@@ -291,7 +301,7 @@ VideoDecoder::Status VideoDecoder::decode(const uint8_t *au, std::size_t size, s
     int dstStride[4] = {impl_->stride, 0, 0, 0};
     sws_scale(impl_->sws, impl_->frame->data, impl_->frame->linesize, 0, h, dst, dstStride);
 
-    impl_->keyframe = impl_->frame->key_frame != 0;
+    impl_->keyframe = isKeyFrame(impl_->frame);
     if (impl_->keyframe) needsKeyframe_ = false;
     av_frame_unref(impl_->frame);
     return Status::FrameReady;
@@ -328,7 +338,7 @@ VideoDecoder::Status VideoDecoder::flush(std::string *error) {
     uint8_t *dst[4] = {impl_->bgr.data(), nullptr, nullptr, nullptr};
     int dstStride[4] = {impl_->stride, 0, 0, 0};
     sws_scale(impl_->sws, impl_->frame->data, impl_->frame->linesize, 0, h, dst, dstStride);
-    impl_->keyframe = impl_->frame->key_frame != 0;
+    impl_->keyframe = isKeyFrame(impl_->frame);
     av_frame_unref(impl_->frame);
     return Status::FrameReady;
 }

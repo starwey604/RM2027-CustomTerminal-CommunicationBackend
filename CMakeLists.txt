@@ -19,6 +19,7 @@ endif()
 option(RM_BUILD_CLIENT          "构建 MQTT 自定义终端"   ON)
 option(RM_BUILD_SERVER          "构建 MQTT 协议服务器(自带 broker)" ON)
 option(RM_BUILD_VIDEO           "构建 UDP 图传码流收发工具" ON)
+option(RM_BUILD_VIDEO_TESTS     "构建 FFmpeg 编解码兼容性回归测试（需要 libx265）" OFF)
 
 # ---------------------------------------------------------------------------
 # 依赖
@@ -201,3 +202,11 @@ endif()
 
 message(STATUS "UDP 包头字节序: 大端（官方 2027 V1.0.0 §2 明文规定，实现不再提供开关）")
 message(STATUS "RadarInfoToClient 线格式: 默认 nested，可用 setRadarWireFormat()/--radar-wire-format 切 flat")
+
+if(RM_BUILD_VIDEO_TESTS)
+    enable_testing()
+    add_executable(rm_video_ffmpeg_compat_test tests/video_ffmpeg_compat.cpp)
+    target_link_libraries(rm_video_ffmpeg_compat_test PRIVATE rm2027_video)
+    add_test(NAME video_ffmpeg_compat COMMAND rm_video_ffmpeg_compat_test)
+    set_tests_properties(video_ffmpeg_compat PROPERTIES TIMEOUT 60)
+endif()
